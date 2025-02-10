@@ -4,80 +4,79 @@ import xgboost as xgb
 from sklearn.preprocessing import LabelEncoder, OrdinalEncoder, StandardScaler
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 from sklearn.model_selection import train_test_split
-from datetime import datetime
+
 
 class DataProcessing:
-    
+    def __init__(self, df):
+        """
+        Initializes the DataPreprocessor class with a DataFrame.
+        """
+        self.df = df
+
     @staticmethod
-    def update_column_name(df, old_name, new_name):
+    def update_column_name(self, old_name, new_name):
         """Update column name in the dataframe."""
-        df.rename(columns={old_name: new_name}, inplace=True)
-        return df
+        self.df.rename(columns={old_name: new_name}, inplace=True)
     
     @staticmethod
-    def extract_features(df, feature_columns):
+    def extract_features(self, feature_columns):
         """Extract specific feature columns from dataframe."""
-        return df[feature_columns]
+        return self.df[feature_columns]
     
     @staticmethod
-    def extract_labels(df, label_column):
+    def extract_labels(self, label_column):
         """Extract labels column from dataframe."""
-        return df[label_column]
+        return self.df[label_column]
     
     @staticmethod
-    def drop_columns(df, columns_to_drop):
+    def drop_columns(self, columns_to_drop):
         """Drop specified columns from the dataframe."""
-        df.drop(columns=columns_to_drop, inplace=True)
-        return df
+        self.df.drop(columns=columns_to_drop, inplace=True)
     
     @staticmethod
-    def update_datatype(df, column_name, new_dtype):
+    def update_datatype(self, column_name, new_dtype):
         """Update the datatype of a column in the dataframe."""
-        df[column_name] = df[column_name].astype(new_dtype)
-        return df
+        return self[column_name].astype(new_dtype)
     
     @staticmethod
-    def convert_nan(df, column_name, vc):
+    def convert_nan(self, column_name, vc):
         """
         Converts the string 'NaN ' to a float NaN value in the given DataFrame df.
         """
-        
-        df[column_name].replace(vc, float(np.nan), regex=True, inplace=True)
+        self[column_name].replace(vc, float(np.nan), regex=True, inplace=True)
 
 
     @staticmethod
-    def handle_null_values(df, strategy='mean', fill_value=None):
+    def handle_null_values(self, col, strategy='mean', fill_value=None):
         """Handle null values in dataframe based on strategy."""
         if strategy == 'mean':
-            df.fillna(df.mean(), inplace=True)
+            self[col].fillna(self[col].mean(), inplace=True)
         elif strategy == 'median':
-            df.fillna(df.median(), inplace=True)
+            self[col].fillna(self[col].median(), inplace=True)
         elif strategy == 'mode':
-            df.fillna(df.mode().iloc[0], inplace=True)
+            self[col].fillna(self[col].mode().iloc[0], inplace=True)
         elif strategy == 'value' and fill_value is not None:
-            df.fillna(fill_value, inplace=True)
+            self[col].fillna(fill_value, inplace=True)
         elif strategy == 'drop':
-            df.dropna(inplace=True)
-        return df
+            self[col].dropna(inplace=True)
     
     @staticmethod
-    def extract_date_features(df, date_column):
+    def extract_date_features(self, date_column):
         """Extract year, month, day, weekday, and hour from a datetime column."""
-        df[date_column] = pd.to_datetime(df[date_column])
-        df['year'] = df[date_column].dt.year
-        df['month'] = df[date_column].dt.month
-        df['day'] = df[date_column].dt.day
-        df['weekday'] = df[date_column].dt.weekday
-        df['hour'] = df[date_column].dt.hour
-        return df
+        self[date_column] = pd.to_datetime(self[date_column])
+        self['year'] = self[date_column].dt.year
+        self['month'] = self[date_column].dt.month
+        self['day'] = self[date_column].dt.day
+        self['weekday'] = self[date_column].dt.weekday
+        self['hour'] = self[date_column].dt.hour
     
     @staticmethod
-    def compute_time_delta(df, start_column, end_column):
+    def compute_time_delta(self, start_column, end_column):
         """Compute the time delta between two datetime columns."""
-        df[start_column] = pd.to_datetime(df[start_column])
-        df[end_column] = pd.to_datetime(df[end_column])
-        df['time_delta'] = (df[end_column] - df[start_column]).dt.total_seconds()
-        return df
+        self.df[start_column] = pd.to_datetime(self.df[start_column])
+        self.df[end_column] = pd.to_datetime(self.df[end_column])
+        self.df['time_delta'] = (self.df[end_column] - self.df[start_column]).dt.total_seconds()
+        
     
     @staticmethod
     def deg_to_rad(degrees):
@@ -101,14 +100,15 @@ class DataProcessing:
         return radius * c
     
     @staticmethod
-    def label_encoding(df, column_name):
+    def label_encoding(self, column_name):
         """Encode labels in a column using Label Encoding."""
         le = LabelEncoder()
-        df[column_name] = le.fit_transform(df[column_name])
-        return df
+        self[column_name] = le.fit_transform(self[column_name])
+        return le
+        
 
     @staticmethod
-    def ordinal_encoding_sklearn(df, column_name, categories_order=None):
+    def ordinal_encoding(self, column_name, categories_order=None):
         """Perform ordinal encoding on a categorical column using sklearn's OrdinalEncoder.
         
         Parameters:
@@ -123,22 +123,25 @@ class DataProcessing:
         encoder = OrdinalEncoder(categories=[categories_order] if categories_order else 'auto')
         
         # Fit and transform the specified column
-        df[column_name] = encoder.fit_transform(df[[column_name]])
-        
-        return df
+        self[column_name] = encoder.fit_transform(self[[column_name]])
+        return encoder
 
-    def data_split(self, X, y):        
+        
+    @staticmethod
+    def data_split(self):        
         """
         Splits the input features X and target variable y into training and testing sets:
         - Splits the data with a test size of 0.2 and a random state of 42
         - Returns X_train, X_test, y_train, y_test
         """
-        
+        # Split features & label
+        X = self.drop('target', axis=1)               # Features
+        y = self['target']                            # Target variable
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         return X_train, X_test, y_train, y_test
 
 
-    def standardize(self, X_train, X_test):
+    def standardize(self, df):
         """
         Standardizes the training and testing feature sets:
         - Fits a StandardScaler on X_train
@@ -146,20 +149,23 @@ class DataProcessing:
         - Returns X_train, X_test, and the fitted StandardScaler
         """
         
-        scaler = StandardScaler()
-        scaler.fit(X_train)
-        X_train = scaler.transform(X_train)
-        X_test = scaler.transform(X_test)
-        return X_train, X_test, scaler
+        # scaler = StandardScaler()
+        # scaler.fit(df)
+        # X_test = scaler.transform(X_test)
+        # return X_train, X_test, scaler
+    
+
+    def normalize_time_values(self, col):
+        print('normalize time values: ', self.df.sample(), ':', col)
+        return (pd.to_datetime(self.df[col]).dt.hour * 3600 +\
+                 pd.to_datetime(self.df[col]).dt.minute * 60 + \
+                            pd.to_datetime(self.df[col]).dt.second) / 86400
 
 
-    def cleaning_steps(self, df):
-        self.update_column_name(df)
-        # self.extract_feature_value(df)
-        self.drop_columns(df)
-        self.update_datatype(df)
-        self.convert_nan(df)
-        self.handle_null_values(df)
+    def cleaning_steps(self):
+        pass
+        
+        
 
     def perform_feature_engineering(self, df):
         self.extract_date_features(df)
