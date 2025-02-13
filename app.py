@@ -20,6 +20,8 @@ def main():
     dataprocess.convert_nan(df, 'Time_Orderd', 'NaN ')
     dataprocess.convert_nan(df, 'Time_Order_picked', 'NaN ')
 
+    
+
 
 if __name__ == '__main__':
     main()
